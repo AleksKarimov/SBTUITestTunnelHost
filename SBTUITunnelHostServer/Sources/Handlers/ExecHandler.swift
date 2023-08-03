@@ -26,10 +26,9 @@ class ExecHandler: BaseHandler {
     private var executablesBasePath = "~/Desktop"
 
     private func parseCommand(_ params: [AnyHashable: Any]) -> String? {
-        guard let encodedCommand = params["command"] as? String,
-              let decdedData = Data(base64Encoded: encodedCommand),
-              let decodedCommand = String(data: decdedData, encoding: .utf8)
-        else { return nil }
+        guard let encodedCommand = params["command"] as? String else { return nil }
+        guard let decodedData = Data.decodeUrlSafeBase64(encodedCommand) else { return nil }
+        guard let decodedCommand = String(data: decodedData, encoding: .utf8) else { return nil }
 
         return decodedCommand
     }
@@ -141,5 +140,24 @@ class ExecHandler: BaseHandler {
         addHandlerForParameter("/terminate", parser: parseUUID) { id in
             self.responseForCommandStatus(terminateCommand(with: id))
         }
+    }
+}
+
+extension Data {
+    static func decodeUrlSafeBase64(_ value: String) -> Data? {
+        var stringtoDecode: String = value.replacingOccurrences(of: "-", with: "+")
+        stringtoDecode = stringtoDecode.replacingOccurrences(of: "_", with: "/")
+        switch (stringtoDecode.utf8.count % 4) {
+            case 2:
+                stringtoDecode += "=="
+            case 3:
+                stringtoDecode += "="
+            default:
+                break
+        }
+        guard let data = Data(base64Encoded: stringtoDecode, options: [.ignoreUnknownCharacters]) else {
+            return nil
+        }
+        return data
     }
 }
